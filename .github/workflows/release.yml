@@ -8,16 +8,20 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     name: 📝 Create Release
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🏷️ Get version from tag
         id: get_version
@@ -26,20 +30,19 @@ jobs:
       - name: 📋 Generate changelog
         id: changelog
         run: |
-          echo "## What's Changed" > changelog.md
-          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s (%h)" >> changelog.md || echo "- Initial release" >> changelog.md
+          {
+            echo "## What's Changed"
+            echo ""
+            git log $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD --pretty=format:"- %s (%h)" || echo "- Initial release"
+          } > changelog.md
 
-      - name: 🎉 Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: 🎉 Create GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ steps.get_version.outputs.version }}
-          body_path: changelog.md
-          draft: false
-          prerelease: false
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v${{ steps.get_version.outputs.version }} \
+            --title "Release v${{ steps.get_version.outputs.version }}" \
+            --notes-file changelog.md
 
   build-release:
     name: 🏗️ Build ${{ matrix.target }}
@@ -105,11 +108,9 @@ jobs:
           tar.exe -czf ..\${{ matrix.artifact_name }}.tar.gz *
 
       - name: 📤 Upload Release Asset
-        uses: actions/upload-release-asset@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./${{ matrix.artifact_name }}.tar.gz
-          asset_name: ${{ matrix.artifact_name }}-v${{ needs.create-release.outputs.version }}.tar.gz
-          asset_content_type: application/gzip
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v${{ needs.create-release.outputs.version }} \
+            ${{ matrix.artifact_name }}.tar.gz \
+            --clobber
