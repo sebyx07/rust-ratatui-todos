@@ -6,13 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Testing
 ```bash
-# Run all tests (48 tests: 23 unit + 25 integration)
+# Run all tests (67 tests: 23 unit + 44 integration)
 cargo test
 
 # Run specific test file
 cargo test --test database_integration
 cargo test --test app_workflow
 cargo test --test server_api
+cargo test --test cli_integration
 
 # Run tests in a specific module
 cargo test db::tests::
@@ -75,6 +76,68 @@ curl -X PUT http://localhost:3000/todos/1 \
 curl -X DELETE http://localhost:3000/todos/1
 ```
 
+#### CLI Client
+```bash
+# Build the CLI
+cargo build --bin todo-cli
+
+# Run the CLI (default DB: ./tmp/todos.db)
+cargo run --bin todo-cli -- <command>
+
+# Use custom database path
+cargo run --bin todo-cli -- --db-path /tmp/my-todos.db <command>
+
+# Or via environment variable
+TODO_DB_PATH=/tmp/my-todos.db cargo run --bin todo-cli -- <command>
+```
+
+The CLI provides the following commands:
+
+**Add a new todo:**
+```bash
+cargo run --bin todo-cli -- add "Buy groceries"
+```
+
+**List all todos:**
+```bash
+cargo run --bin todo-cli -- list
+```
+
+**Toggle completion status:**
+```bash
+cargo run --bin todo-cli -- toggle 1
+```
+
+**Mark as complete:**
+```bash
+cargo run --bin todo-cli -- complete 1
+```
+
+**Mark as incomplete:**
+```bash
+cargo run --bin todo-cli -- uncomplete 1
+```
+
+**Get a specific todo:**
+```bash
+cargo run --bin todo-cli -- get 1
+```
+
+**Update todo title:**
+```bash
+cargo run --bin todo-cli -- update 1 "New title"
+```
+
+**Delete a todo:**
+```bash
+cargo run --bin todo-cli -- delete 1
+```
+
+**Get help:**
+```bash
+cargo run --bin todo-cli -- --help
+```
+
 #### General
 ```bash
 # Clean build artifacts
@@ -101,11 +164,12 @@ cargo fmt
 
 ## Architecture Overview
 
-This project contains two executables that share the same database layer:
+This project contains three executables that share the same database layer:
 1. **TUI Client** (`main.rs`) - Terminal-based interactive todo list application
 2. **HTTP Server** (`src/bin/server.rs`) - REST API server for managing todos
+3. **CLI Client** (`src/bin/cli.rs`) - Command-line interface for scripting and quick operations
 
-Both applications use a clean 3-layer architecture following separation of concerns:
+The TUI client uses a clean 3-layer architecture following separation of concerns, while the server and CLI directly use the database layer:
 
 ### Layer 1: Database Layer (`db.rs`)
 - **Purpose**: SQLite persistence and data access
@@ -158,13 +222,23 @@ Both applications use a clean 3-layer architecture following separation of conce
 - **CORS**: Permissive CORS policy enabled for development
 - **Error Handling**: Custom `ApiError` enum with appropriate HTTP status codes
 
+### CLI Client (`src/bin/cli.rs`)
+- **Framework**: Built with Clap for command-line argument parsing
+- **Commands**: Full CRUD operations via subcommands (add, list, toggle, complete, uncomplete, delete, get, update)
+- **Database Access**: Direct use of `Database` layer, same as server
+- **Configuration**: Database path configurable via `--db-path` flag or `TODO_DB_PATH` environment variable
+- **Output**: Human-readable formatted output for list and get commands
+- **Error Handling**: Returns appropriate exit codes (0 for success, 1 for errors)
+- **Use Cases**: Scripting, quick operations, batch processing, CI/CD integration
+
 ### Testing Architecture (`lib.rs` + `tests/`)
 - **Library crate**: `lib.rs` exposes modules for integration testing
 - **Unit tests**: Colocated with implementation using `#[cfg(test)]` modules (23 tests)
-- **Integration tests**: Separate `tests/` directory with three test files (25 tests):
+- **Integration tests**: Separate `tests/` directory with four test files (44 tests):
   - `database_integration.rs`: Tests persistence, concurrency, SQL injection prevention, large datasets
   - `app_workflow.rs`: Tests end-to-end workflows, mode transitions, selection logic
   - `server_api.rs`: Tests server database operations, thread safety, JSON serialization, validation
+  - `cli_integration.rs`: Tests CLI commands via process spawning, exit codes, output validation, workflows
 
 ## Key Design Patterns
 

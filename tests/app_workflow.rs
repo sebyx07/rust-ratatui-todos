@@ -71,7 +71,9 @@ fn test_complete_user_workflow() {
     assert!(app.input.is_empty());
 
     // Add second todo
-    "Write documentation".chars().for_each(|c| app.input_char(c));
+    "Write documentation"
+        .chars()
+        .for_each(|c| app.input_char(c));
     app.add_todo().expect("Failed to add todo");
     assert_eq!(app.todos.len(), 2);
 
@@ -149,7 +151,9 @@ fn test_input_mode_with_cancel() {
 
     // Enter edit mode and type
     app.enter_edit_mode();
-    "This will be cancelled".chars().for_each(|c| app.input_char(c));
+    "This will be cancelled"
+        .chars()
+        .for_each(|c| app.input_char(c));
     assert_eq!(app.input, "This will be cancelled");
 
     // Cancel with exit_edit_mode
@@ -323,7 +327,10 @@ fn test_app_state_consistency() {
     // Verify state consistency
     assert_eq!(app.todos.len(), 1);
     assert!(app.input.is_empty(), "Input should be cleared after add");
-    assert!(app.list_state.selected().is_some(), "Selection should exist");
+    assert!(
+        app.list_state.selected().is_some(),
+        "Selection should exist"
+    );
 
     // Toggle and verify
     app.toggle_selected().expect("Failed to toggle");

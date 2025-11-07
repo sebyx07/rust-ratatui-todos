@@ -89,16 +89,10 @@ fn test_database_error_handling() {
 
     // Test operations on nonexistent todos
     let result = db.toggle_todo(999);
-    assert!(
-        result.is_err(),
-        "Should fail to toggle nonexistent todo"
-    );
+    assert!(result.is_err(), "Should fail to toggle nonexistent todo");
 
     let result = db.delete_todo(999);
-    assert!(
-        result.is_err(),
-        "Should fail to delete nonexistent todo"
-    );
+    assert!(result.is_err(), "Should fail to delete nonexistent todo");
 
     cleanup_db(&db_path);
 }
@@ -154,7 +148,8 @@ fn test_database_with_special_characters() {
     ];
 
     for title in &special_titles {
-        db.add_todo(title).expect("Failed to add todo with special chars");
+        db.add_todo(title)
+            .expect("Failed to add todo with special chars");
     }
 
     let todos = db.get_todos().expect("Failed to get todos");

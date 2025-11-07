@@ -1,9 +1,9 @@
 use axum::{
-    extract::{Path, State},
+    Json, Router,
+    extract::{Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::get,
-    Json, Router,
 };
 use rust_ratatui_todo::{db::Database, models::Todo};
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,29 @@ struct UpdateTodoRequest {
     title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     completed: Option<bool>,
+}
+
+/// Query parameters for paginated list
+#[derive(Debug, Deserialize)]
+struct PaginationParams {
+    #[serde(default)]
+    page: Option<u32>,
+    #[serde(default = "default_page_size")]
+    page_size: u32,
+}
+
+fn default_page_size() -> u32 {
+    20
+}
+
+/// Response for paginated list of todos
+#[derive(Debug, Serialize)]
+struct PaginatedTodosResponse {
+    todos: Vec<Todo>,
+    page: u32,
+    page_size: u32,
+    total_count: u32,
+    total_pages: u32,
 }
 
 /// Standard error response
@@ -68,11 +91,32 @@ impl From<rusqlite::Error> for ApiError {
     }
 }
 
-/// GET /todos - List all todos
-async fn list_todos(State(state): State<Arc<AppState>>) -> Result<Json<Vec<Todo>>, ApiError> {
+/// GET /todos - List all todos with optional pagination
+async fn list_todos(
+    State(state): State<Arc<AppState>>,
+    Query(params): Query<PaginationParams>,
+) -> Result<Json<PaginatedTodosResponse>, ApiError> {
     let db = state.db.lock().unwrap();
-    let todos = db.get_todos()?;
-    Ok(Json(todos))
+
+    let page = params.page.unwrap_or(0);
+    let page_size = params.page_size;
+
+    let total_count = db.count_todos()?;
+    let todos = db.get_todos_paginated(page, page_size)?;
+
+    let total_pages = if total_count == 0 {
+        1
+    } else {
+        total_count.div_ceil(page_size)
+    };
+
+    Ok(Json(PaginatedTodosResponse {
+        todos,
+        page,
+        page_size,
+        total_count,
+        total_pages,
+    }))
 }
 
 /// GET /todos/:id - Get a single todo by ID
@@ -127,10 +171,10 @@ async fn update_todo(
     }
 
     // Toggle completion if the value changed
-    if let Some(completed) = payload.completed {
-        if completed != todo.completed {
-            db.toggle_todo(id)?;
-        }
+    if let Some(completed) = payload.completed
+        && completed != todo.completed
+    {
+        db.toggle_todo(id)?;
     }
 
     // Return the updated todo
@@ -191,7 +235,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Todo server listening on http://{}", addr);
     println!("\nAvailable endpoints:");
     println!("  GET    /health       - Health check");
-    println!("  GET    /todos        - List all todos");
+    println!("  GET    /todos        - List todos (supports ?page=0&page_size=20)");
     println!("  GET    /todos/:id    - Get a specific todo");
     println!("  POST   /todos        - Create a new todo");
     println!("  PUT    /todos/:id    - Update a todo");

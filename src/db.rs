@@ -57,6 +57,31 @@ impl Database {
         todos.collect()
     }
 
+    /// Get paginated todo items ordered by ID
+    pub fn get_todos_paginated(&self, page: u32, page_size: u32) -> Result<Vec<Todo>> {
+        let offset = page * page_size;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, title, completed FROM todos ORDER BY id LIMIT ?1 OFFSET ?2")?;
+        let todos = stmt.query_map([page_size, offset], |row| {
+            Ok(Todo {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                completed: row.get::<_, i64>(2)? != 0,
+            })
+        })?;
+
+        todos.collect()
+    }
+
+    /// Get total count of todos
+    pub fn count_todos(&self) -> Result<u32> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM todos", [], |row| row.get(0))?;
+        Ok(count as u32)
+    }
+
     /// Toggle the completion status of a todo item
     pub fn toggle_todo(&self, id: i64) -> Result<()> {
         let rows_affected = self.conn.execute(
@@ -71,9 +96,7 @@ impl Database {
 
     /// Delete a todo item by ID
     pub fn delete_todo(&self, id: i64) -> Result<()> {
-        let rows_affected = self
-            .conn
-            .execute("DELETE FROM todos WHERE id = ?1", [id])?;
+        let rows_affected = self.conn.execute("DELETE FROM todos WHERE id = ?1", [id])?;
         if rows_affected == 0 {
             return Err(rusqlite::Error::QueryReturnedNoRows);
         }
@@ -113,6 +136,12 @@ impl Database {
             return Err(rusqlite::Error::QueryReturnedNoRows);
         }
         Ok(())
+    }
+
+    /// Clear all todos from the database
+    pub fn clear_all(&self) -> Result<u32> {
+        let rows_affected = self.conn.execute("DELETE FROM todos", [])?;
+        Ok(rows_affected as u32)
     }
 }
 
@@ -278,8 +307,7 @@ mod tests {
 
         {
             let db = Database::new(test_db_path).expect("Failed to create database");
-            db.add_todo("Persistent todo")
-                .expect("Failed to add todo");
+            db.add_todo("Persistent todo").expect("Failed to add todo");
         }
 
         // Reopen the database
@@ -360,5 +388,90 @@ mod tests {
         let todos = db.get_todos().expect("Failed to get todos");
         assert_eq!(todos[0].title, "New title");
         assert!(todos[0].completed);
+    }
+
+    #[test]
+    fn test_get_todos_paginated() {
+        let db = create_test_db();
+
+        // Add 25 todos
+        for i in 1..=25 {
+            db.add_todo(&format!("Todo {}", i))
+                .expect("Failed to add todo");
+        }
+
+        // Get first page (10 items)
+        let page1 = db.get_todos_paginated(0, 10).expect("Failed to get page 1");
+        assert_eq!(page1.len(), 10);
+        assert_eq!(page1[0].title, "Todo 1");
+        assert_eq!(page1[9].title, "Todo 10");
+
+        // Get second page (10 items)
+        let page2 = db.get_todos_paginated(1, 10).expect("Failed to get page 2");
+        assert_eq!(page2.len(), 10);
+        assert_eq!(page2[0].title, "Todo 11");
+        assert_eq!(page2[9].title, "Todo 20");
+
+        // Get third page (5 items)
+        let page3 = db.get_todos_paginated(2, 10).expect("Failed to get page 3");
+        assert_eq!(page3.len(), 5);
+        assert_eq!(page3[0].title, "Todo 21");
+        assert_eq!(page3[4].title, "Todo 25");
+
+        // Get page beyond available data
+        let page4 = db.get_todos_paginated(3, 10).expect("Failed to get page 4");
+        assert_eq!(page4.len(), 0);
+    }
+
+    #[test]
+    fn test_count_todos() {
+        let db = create_test_db();
+
+        // Initially empty
+        let count = db.count_todos().expect("Failed to count todos");
+        assert_eq!(count, 0);
+
+        // Add 10 todos
+        for i in 1..=10 {
+            db.add_todo(&format!("Todo {}", i))
+                .expect("Failed to add todo");
+        }
+
+        let count = db.count_todos().expect("Failed to count todos");
+        assert_eq!(count, 10);
+
+        // Delete one
+        let todos = db.get_todos().expect("Failed to get todos");
+        db.delete_todo(todos[0].id).expect("Failed to delete todo");
+
+        let count = db.count_todos().expect("Failed to count todos");
+        assert_eq!(count, 9);
+    }
+
+    #[test]
+    fn test_pagination_with_different_page_sizes() {
+        let db = create_test_db();
+
+        // Add 100 todos
+        for i in 1..=100 {
+            db.add_todo(&format!("Todo {}", i))
+                .expect("Failed to add todo");
+        }
+
+        // Test page size of 20
+        let page1 = db.get_todos_paginated(0, 20).expect("Failed to get page");
+        assert_eq!(page1.len(), 20);
+
+        // Test page size of 50
+        let page1 = db.get_todos_paginated(0, 50).expect("Failed to get page");
+        assert_eq!(page1.len(), 50);
+
+        // Test page size of 100
+        let page1 = db.get_todos_paginated(0, 100).expect("Failed to get page");
+        assert_eq!(page1.len(), 100);
+
+        // Test page size larger than available
+        let page1 = db.get_todos_paginated(0, 200).expect("Failed to get page");
+        assert_eq!(page1.len(), 100);
     }
 }

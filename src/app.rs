@@ -9,13 +9,22 @@ pub struct App {
     pub list_state: ListState,
     pub input_mode: InputMode,
     pub input: String,
+    pub current_page: u32,
+    pub page_size: u32,
+    pub total_count: u32,
 }
 
 impl App {
     /// Create a new App instance with the given database path
     pub fn new(db_path: &str) -> Result<Self, Box<dyn Error>> {
+        Self::with_page_size(db_path, 50)
+    }
+
+    /// Create a new App instance with a custom page size
+    pub fn with_page_size(db_path: &str, page_size: u32) -> Result<Self, Box<dyn Error>> {
         let db = Database::new(db_path)?;
-        let todos = db.get_todos()?;
+        let total_count = db.count_todos()?;
+        let todos = db.get_todos_paginated(0, page_size)?;
         let mut list_state = ListState::default();
         if !todos.is_empty() {
             list_state.select(Some(0));
@@ -27,12 +36,18 @@ impl App {
             list_state,
             input_mode: InputMode::Normal,
             input: String::new(),
+            current_page: 0,
+            page_size,
+            total_count,
         })
     }
 
     /// Refresh todos from the database
     pub fn refresh_todos(&mut self) -> Result<(), Box<dyn Error>> {
-        self.todos = self.db.get_todos()?;
+        self.total_count = self.db.count_todos()?;
+        self.todos = self
+            .db
+            .get_todos_paginated(self.current_page, self.page_size)?;
 
         // Adjust selection if needed
         if self.todos.is_empty() {
@@ -46,6 +61,47 @@ impl App {
         }
 
         Ok(())
+    }
+
+    /// Go to the next page
+    pub fn next_page(&mut self) -> Result<(), Box<dyn Error>> {
+        let max_page = (self.total_count.saturating_sub(1)) / self.page_size;
+        if self.current_page < max_page {
+            self.current_page += 1;
+            self.refresh_todos()?;
+            self.list_state.select(Some(0));
+        }
+        Ok(())
+    }
+
+    /// Go to the previous page
+    pub fn previous_page(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.current_page > 0 {
+            self.current_page -= 1;
+            self.refresh_todos()?;
+            self.list_state.select(Some(0));
+        }
+        Ok(())
+    }
+
+    /// Get total number of pages
+    pub fn total_pages(&self) -> u32 {
+        if self.total_count == 0 {
+            1
+        } else {
+            self.total_count.div_ceil(self.page_size)
+        }
+    }
+
+    /// Get pagination info string
+    pub fn pagination_info(&self) -> String {
+        format!(
+            "Page {}/{} | Total: {} | Showing: {}",
+            self.current_page + 1,
+            self.total_pages(),
+            self.total_count,
+            self.todos.len()
+        )
     }
 
     /// Move selection to the next item
@@ -104,6 +160,13 @@ impl App {
             self.refresh_todos()?;
         }
         Ok(())
+    }
+
+    /// Clear all todos from the database
+    pub fn clear_all(&mut self) -> Result<u32, Box<dyn Error>> {
+        let count = self.db.clear_all()?;
+        self.refresh_todos()?;
+        Ok(count)
     }
 
     /// Add a new todo from the current input

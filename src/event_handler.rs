@@ -26,6 +26,12 @@ pub fn run<B: ratatui::backend::Backend>(
                     KeyCode::Char('k') | KeyCode::Up => app.previous(),
                     KeyCode::Char(' ') => app.toggle_selected()?,
                     KeyCode::Char('d') | KeyCode::Delete => app.delete_selected()?,
+                    KeyCode::Char('n') | KeyCode::PageDown => app.next_page()?,
+                    KeyCode::Char('p') | KeyCode::PageUp => app.previous_page()?,
+                    KeyCode::Char('C') => {
+                        // Capital C to clear all (requires shift, prevents accidental deletion)
+                        app.clear_all()?;
+                    }
                     _ => {}
                 },
                 InputMode::Editing => match key.code {
