@@ -299,8 +299,8 @@ mod tests {
 
     #[test]
     fn test_persistence() {
-        use std::fs;
         use std::env;
+        use std::fs;
         let test_db_path = env::temp_dir().join("test_todo_db.sqlite");
         let test_db_path_str = test_db_path.to_str().expect("Invalid path");
 
