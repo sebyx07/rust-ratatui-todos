@@ -81,7 +81,6 @@ impl Database {
     }
 
     /// Get a single todo by ID
-    #[cfg(test)]
     pub fn get_todo_by_id(&self, id: i64) -> Result<Option<Todo>> {
         let mut stmt = self
             .conn
@@ -97,6 +96,23 @@ impl Database {
         } else {
             Ok(None)
         }
+    }
+
+    /// Update the title of a todo item
+    pub fn update_todo_title(&self, id: i64, title: &str) -> Result<()> {
+        if title.trim().is_empty() {
+            return Err(rusqlite::Error::InvalidParameterName(
+                "Title cannot be empty".to_string(),
+            ));
+        }
+        let rows_affected = self.conn.execute(
+            "UPDATE todos SET title = ?1 WHERE id = ?2",
+            [title, &id.to_string()],
+        )?;
+        if rows_affected == 0 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
+        Ok(())
     }
 }
 
@@ -276,5 +292,73 @@ mod tests {
 
         // Clean up
         let _ = fs::remove_file(test_db_path);
+    }
+
+    #[test]
+    fn test_update_todo_title() {
+        let db = create_test_db();
+        db.add_todo("Original title").expect("Failed to add todo");
+
+        let todos = db.get_todos().expect("Failed to get todos");
+        let todo_id = todos[0].id;
+        assert_eq!(todos[0].title, "Original title");
+
+        // Update the title
+        db.update_todo_title(todo_id, "Updated title")
+            .expect("Failed to update title");
+
+        let todos = db.get_todos().expect("Failed to get todos");
+        assert_eq!(todos.len(), 1);
+        assert_eq!(todos[0].id, todo_id); // ID should remain the same
+        assert_eq!(todos[0].title, "Updated title");
+    }
+
+    #[test]
+    fn test_update_todo_title_empty_fails() {
+        let db = create_test_db();
+        db.add_todo("Original title").expect("Failed to add todo");
+
+        let todos = db.get_todos().expect("Failed to get todos");
+        let todo_id = todos[0].id;
+
+        // Try to update with empty title
+        let result = db.update_todo_title(todo_id, "");
+        assert!(result.is_err());
+
+        // Try to update with whitespace-only title
+        let result = db.update_todo_title(todo_id, "   ");
+        assert!(result.is_err());
+
+        // Verify original title is unchanged
+        let todos = db.get_todos().expect("Failed to get todos");
+        assert_eq!(todos[0].title, "Original title");
+    }
+
+    #[test]
+    fn test_update_nonexistent_todo_title() {
+        let db = create_test_db();
+        let result = db.update_todo_title(999, "New title");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_update_todo_title_preserves_completion_status() {
+        let db = create_test_db();
+        db.add_todo("Original title").expect("Failed to add todo");
+
+        let todos = db.get_todos().expect("Failed to get todos");
+        let todo_id = todos[0].id;
+
+        // Toggle to completed
+        db.toggle_todo(todo_id).expect("Failed to toggle todo");
+
+        // Update title
+        db.update_todo_title(todo_id, "New title")
+            .expect("Failed to update title");
+
+        // Verify both title and completion status
+        let todos = db.get_todos().expect("Failed to get todos");
+        assert_eq!(todos[0].title, "New title");
+        assert!(todos[0].completed);
     }
 }

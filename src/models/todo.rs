@@ -1,5 +1,5 @@
 /// Represents a todo item
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Todo {
     pub id: i64,
     pub title: String,
