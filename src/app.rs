@@ -1,12 +1,7 @@
-use crate::db::{Database, Todo};
+use crate::db::Database;
+use crate::models::{InputMode, Todo};
 use ratatui::widgets::ListState;
 use std::error::Error;
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum InputMode {
-    Normal,
-    Editing,
-}
 
 pub struct App {
     pub db: Database,

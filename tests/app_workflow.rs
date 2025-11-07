@@ -1,7 +1,8 @@
 // Integration tests for application workflows
 // Tests the interaction between app and database modules
 
-use rust_ratatui_todo::app::{App, InputMode};
+use rust_ratatui_todo::app::App;
+use rust_ratatui_todo::models::InputMode;
 use std::fs;
 
 /// Helper to create a unique test database path

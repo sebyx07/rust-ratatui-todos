@@ -1,4 +1,5 @@
-use crate::app::{App, InputMode};
+use crate::app::App;
+use crate::models::InputMode;
 use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
