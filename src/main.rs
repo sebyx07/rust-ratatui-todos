@@ -1,8 +1,5 @@
-mod app;
-mod db;
-mod ui;
-
-use app::{App, InputMode};
+use rust_ratatui_todo::app::{App, InputMode};
+use rust_ratatui_todo::ui;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,

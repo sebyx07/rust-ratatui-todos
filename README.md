@@ -8,17 +8,22 @@ A terminal-based todo list application built with Rust, featuring persistent SQL
 - **Terminal UI**: Clean, intuitive interface using Ratatui
 - **Vim-Style Navigation**: Efficient keyboard controls
 - **CRUD Operations**: Create, read, update (toggle), and delete todos
-- **Comprehensive Tests**: 19 unit tests with full coverage
+- **Comprehensive Tests**: 34 tests (19 unit + 15 integration)
 - **Clean Architecture**: Modular code with separation of concerns
 
 ## Project Structure
 
 ```
 src/
+├── lib.rs     # Library crate for integration testing
 ├── main.rs    # Entry point and event loop
 ├── app.rs     # Application state and business logic
 ├── db.rs      # SQLite database operations
 └── ui.rs      # UI rendering components
+
+tests/
+├── database_integration.rs  # Database integration tests
+└── app_workflow.rs          # Application workflow tests
 ```
 
 ## Installation
@@ -70,9 +75,13 @@ Todos are stored in `./tmp/todos.db`. The database is created automatically on f
 cargo test
 ```
 
-All 19 tests should pass:
-- 12 database layer tests
-- 7 application logic tests
+All 34 tests should pass:
+- **19 unit tests** (in same files as code):
+  - 12 database layer tests
+  - 7 application logic tests
+- **15 integration tests** (in `tests/` directory):
+  - 6 database integration tests
+  - 9 app workflow integration tests
 
 ### Code Quality
 
@@ -84,12 +93,23 @@ cargo clippy -- -D warnings
 
 ### Test Coverage
 
+#### Unit Tests (in same files)
 - Database initialization and schema creation
 - CRUD operations (Create, Read, Update, Delete)
 - Input validation and error handling
 - Navigation and selection logic
 - State management and mode transitions
 - Edge cases (empty lists, invalid IDs, etc.)
+
+#### Integration Tests (tests/ directory)
+- Database persistence across sessions
+- Concurrent database operations
+- Special characters and SQL injection prevention
+- Large dataset handling (100+ todos)
+- Complete user workflows (add, toggle, delete)
+- Input mode transitions and cancellation
+- Selection adjustment on deletion
+- Application state consistency
 
 ## Architecture
 
