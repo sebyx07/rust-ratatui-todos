@@ -113,19 +113,3 @@ jobs:
           asset_path: ./${{ matrix.artifact_name }}.tar.gz
           asset_name: ${{ matrix.artifact_name }}-v${{ needs.create-release.outputs.version }}.tar.gz
           asset_content_type: application/gzip
-
-  publish-crates-io:
-    name: 📦 Publish to crates.io
-    needs: [create-release, build-release]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🦀 Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: 🚀 Publish to crates.io
-        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
