@@ -3,11 +3,16 @@
 
 use rust_ratatui_todo::app::App;
 use rust_ratatui_todo::models::InputMode;
+use std::env;
 use std::fs;
 
 /// Helper to create a unique test database path
 fn test_db_path(name: &str) -> String {
-    format!("/tmp/test_app_workflow_{}.db", name)
+    env::temp_dir()
+        .join(format!("test_app_workflow_{}.db", name))
+        .to_str()
+        .expect("Invalid path")
+        .to_string()
 }
 
 /// Helper to clean up test database

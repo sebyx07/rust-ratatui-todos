@@ -1,12 +1,17 @@
 // Integration tests for CLI operations
 // Tests the CLI binary by spawning processes and checking outputs
 
+use std::env;
 use std::fs;
 use std::process::Command;
 
 /// Helper to create a unique test database path
 fn test_db_path(name: &str) -> String {
-    format!("/tmp/test_cli_{}.db", name)
+    env::temp_dir()
+        .join(format!("test_cli_{}.db", name))
+        .to_str()
+        .expect("Invalid path")
+        .to_string()
 }
 
 /// Helper to clean up test database
@@ -362,13 +367,17 @@ fn test_cli_help_command() {
 
 #[test]
 fn test_cli_with_custom_db_path() {
-    let custom_path = "/tmp/custom_cli_test.db";
-    cleanup_db(custom_path);
+    let custom_path = env::temp_dir()
+        .join("custom_cli_test.db")
+        .to_str()
+        .expect("Invalid path")
+        .to_string();
+    cleanup_db(&custom_path);
 
     // Use environment variable to set custom path
     let output = Command::new("cargo")
         .args(["run", "--bin", "todo-cli", "--"])
-        .env("TODO_DB_PATH", custom_path)
+        .env("TODO_DB_PATH", &custom_path)
         .args(["add", "Custom path todo"])
         .output()
         .expect("Failed to execute CLI command");
@@ -376,7 +385,7 @@ fn test_cli_with_custom_db_path() {
     assert!(output.status.success());
 
     // Verify the file was created at the custom path
-    assert!(std::path::Path::new(custom_path).exists());
+    assert!(std::path::Path::new(&custom_path).exists());
 
-    cleanup_db(custom_path);
+    cleanup_db(&custom_path);
 }

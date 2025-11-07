@@ -2,11 +2,16 @@
 // Tests the public API of the database module
 
 use rust_ratatui_todo::db::Database;
+use std::env;
 use std::fs;
 
 /// Helper to create a unique test database path
 fn test_db_path(name: &str) -> String {
-    format!("/tmp/test_db_integration_{}.db", name)
+    env::temp_dir()
+        .join(format!("test_db_integration_{}.db", name))
+        .to_str()
+        .expect("Invalid path")
+        .to_string()
 }
 
 /// Helper to clean up test database
