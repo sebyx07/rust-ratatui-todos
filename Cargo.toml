@@ -2,6 +2,14 @@
 name = "rust-ratatui-todo"
 version = "0.1.0"
 edition = "2024"
+authors = ["sebyx07"]
+description = "A high-performance todo list application with TUI, CLI, and REST API interfaces"
+readme = "README.md"
+homepage = "https://github.com/sebyx07/rust-ratatui-todos"
+repository = "https://github.com/sebyx07/rust-ratatui-todos"
+license = "MIT"
+keywords = ["todo", "tui", "cli", "rest-api", "sqlite"]
+categories = ["command-line-utilities", "database"]
 
 [[bin]]
 name = "todo-tui"
