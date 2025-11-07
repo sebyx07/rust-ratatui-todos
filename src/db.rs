@@ -300,26 +300,28 @@ mod tests {
     #[test]
     fn test_persistence() {
         use std::fs;
-        let test_db_path = "/tmp/test_todo_db.sqlite";
+        use std::env;
+        let test_db_path = env::temp_dir().join("test_todo_db.sqlite");
+        let test_db_path_str = test_db_path.to_str().expect("Invalid path");
 
         // Clean up any existing test database
-        let _ = fs::remove_file(test_db_path);
+        let _ = fs::remove_file(&test_db_path);
 
         {
-            let db = Database::new(test_db_path).expect("Failed to create database");
+            let db = Database::new(test_db_path_str).expect("Failed to create database");
             db.add_todo("Persistent todo").expect("Failed to add todo");
         }
 
         // Reopen the database
         {
-            let db = Database::new(test_db_path).expect("Failed to reopen database");
+            let db = Database::new(test_db_path_str).expect("Failed to reopen database");
             let todos = db.get_todos().expect("Failed to get todos");
             assert_eq!(todos.len(), 1);
             assert_eq!(todos[0].title, "Persistent todo");
         }
 
         // Clean up
-        let _ = fs::remove_file(test_db_path);
+        let _ = fs::remove_file(&test_db_path);
     }
 
     #[test]
